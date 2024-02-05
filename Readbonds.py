@@ -44,8 +44,11 @@ def setdiff2d_nb(arr1, arr2):
 def setdiff2d_bc(arr1, arr2):
     idx = (arr1[:, None] != arr2).any(-1).all(1)
     return arr1[idx]
-# ===============================================================================================================
 
+def setdiff2d_bc(arr1, arr2):
+    idx = (arr1[:, None] != arr2).any(-1).all(1)
+    return arr1[idx]
+# ===============================================================================================================
 
 def get_molID(index, fiber_beads_num=1800, IgG_beads_num=6, IgG_num=10):
     # return the molecule ID of a atom, and the type of the molecule
@@ -67,6 +70,7 @@ def cal_bridge_loop(bonds_arr, prev_bonds_arr):
     
     # only explore new formed bonds
     new_bonds = setdiff2d_bc(bonds_arr, prev_bonds_arr)
+    print(new_bonds)
     explored_IgG = []
     for i in range(len(new_bonds)):
         IgG_molID = new_bonds[i][3]
@@ -96,7 +100,7 @@ def cal_bridge_loop(bonds_arr, prev_bonds_arr):
                 else:
                     bridge += 1
                     single -= 1
-    return single, bridge, loop
+    return np.array([[single, bridge, loop]])
     
 def read_results(slurm_out, range1, bond_out):
     '''
@@ -110,8 +114,9 @@ def read_results(slurm_out, range1, bond_out):
     for i, line in enumerate(log_file):
         if i > range1[0] and i < range1[1] :
             log_df.loc[len(log_df.index)] = line.split()
-    
-    log_df2 = log_df[log_df['new bonds'] !="0"] # get a DF with steps when new bonds form
+
+    log_df = log_df.astype({'Step': int, 'PotEng': float, 'temp':float, 'new bonds':int, 'total bonds':int})
+    log_df2 = log_df[log_df['new bonds'] !=0] # get a DF with steps when new bonds form
     log_file.close()
     bond_file = open(bond_out,'r')
     
@@ -122,9 +127,13 @@ def read_results(slurm_out, range1, bond_out):
                 timestep_index.append([num+1, int(bond_file_content[num+1])])
                                       # index of the line,  Timestep in simulation
     
+    print(len(timestep_index))
     prev_bonds_arr = np.zeros((1,4))
+    cross_link_count = np.zeros((1,3))
     for i,pair in enumerate(timestep_index):
-        if pair[1] in log_df2['Step']:
+        if pair[1] in log_df2['Step'].values:
+            print('prev')
+            print(prev_bonds_arr)
             index = pair[0]
             bonds_arr = np.zeros((1,4)) # fiber atom, fiber molID, IgG atom, IgG molID
             for i in range(index+8, timestep_index[i+1][0]-1):
@@ -134,13 +143,17 @@ def read_results(slurm_out, range1, bond_out):
                                     int(line_content_list[2]), get_molID(int(line_content_list[2]))[0]]])
                 else:
                     bonds_arr = np.vstack([bonds_arr,[int(line_content_list[2]), get_molID(int(line_content_list[2]))[0],\
-                                    int(line_content_list[1]), get_molID(int(line_content_list[1]))[0]]])  
-            single, bridge, loop = cal_bridge_loop(bonds_arr, prev_bonds_arr)
-            print(single,bridge,loop)
+                                    int(line_content_list[1]), get_molID(int(line_content_list[1]))[0]]])
+            print('now')
+            print(bonds_arr)
+            print('new')
+            cross_link_count = np.vstack([cross_link_count, cal_bridge_loop(bonds_arr, prev_bonds_arr)])
+            print(cross_link_count)
+            print('--------------------------')
             prev_bonds_arr = bonds_arr
             #log_df2.loc[]
     bond_file.close()
     
-    return log_df#, bond_df
+    return log_df, log_df2, cross_link_count
 
 #https://stackoverflow.com/questions/66674537/python-numpy-get-difference-between-2-two-dimensional-array
