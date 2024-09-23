@@ -155,5 +155,3 @@ def read_results(slurm_out, range1, bond_out):
     bond_file.close()
     
     return log_df, log_df2, cross_link_count
-
-#https://stackoverflow.com/questions/66674537/python-numpy-get-difference-between-2-two-dimensional-array
