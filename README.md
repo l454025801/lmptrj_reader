@@ -14,6 +14,7 @@ The dump file should have the following format
     ...
 
 This file can be created with lammp input command 
+
     dump dump_name all local file_name index c_bond[*]
     
 The scripts support grand canonical simulation (changing number of atoms).
